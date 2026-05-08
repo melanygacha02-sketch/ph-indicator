@@ -2,39 +2,41 @@ import streamlit as st
 from PIL import Image
 import numpy as np
 
-st.title("🧪 Easy pH Color Detector")
-st.write("Upload a photo of your pH strip and enter the RGB values to get the result.")
+st.title("🧪 Auto pH Detector")
 
-# Database of pH colors
-PH_DATA = {
-    1: (230, 50, 50),   
-    7: (50, 180, 50),   
-    13: (100, 50, 150)  
+# THE BRAIN: 0-14 Universal Scale
+PH_SCALE = {
+    0: (230, 0, 0),    1: (255, 30, 0),   2: (255, 80, 0),
+    3: (255, 140, 0),  4: (255, 200, 0),  5: (255, 230, 0),
+    6: (200, 255, 0),  7: (50, 230, 50),  8: (0, 200, 100),
+    9: (0, 180, 180),  10: (0, 120, 230), 11: (0, 50, 200),
+    12: (80, 0, 180),  13: (130, 0, 150), 14: (60, 0, 80)
 }
 
-uploaded_file = st.file_uploader("Choose a photo...", type=["jpg", "png", "jpeg"])
+uploaded_file = st.file_uploader("Upload a CLEAR, cropped photo of just the pH strip color", type=["jpg", "png", "jpeg"])
 
 if uploaded_file:
-    img = Image.open(uploaded_file)
-    st.image(img, caption="Your pH Strip", use_container_width=True)
+    img = Image.open(uploaded_file).convert('RGB')
+    st.image(img, caption="Targeting the center of this photo...", use_container_width=True)
     
-    st.subheader("Enter RGB values from Digital Color Meter:")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        r = st.number_input("Red (R)", 0, 255, 128)
-    with col2:
-        g = st.number_input("Green (G)", 0, 255, 128)
-    with col3:
-        b = st.number_input("Blue (B)", 0, 255, 128)
+    # Logic: Get the color of the pixel in the dead center of the photo
+    width, height = img.size
+    center_pixel = img.getpixel((width // 2, height // 2))
+    r, g, b = center_pixel
     
-    user_color = np.array((r, g, b))
-    distances = {ph: np.linalg.norm(user_color - np.array(color)) for ph, color in PH_DATA.items()}
-    best_ph = min(distances, key=distances.get)
+    st.write(f"**Detected Color at Center:** RGB({r}, {g}, {b})")
+    
+    # Compare detected color to our database
+    user_rgb = np.array((r, g, b))
+    best_ph = min(PH_SCALE.keys(), key=lambda x: np.linalg.norm(user_rgb - np.array(PH_SCALE[x])))
     
     st.divider()
+    st.header(f"Detected pH Level: {best_ph}")
+    
     if best_ph < 7:
-        st.error(f"Result: This is an ACID (Estimated pH: {best_ph})")
+        st.error("Result: ACIDIC")
     elif best_ph > 7:
-        st.info(f"Result: This is a BASE (Estimated pH: {best_ph})")
+        st.info("Result: BASIC")
     else:
-        st.success(f"Result: This is NEUTRAL (pH: 7)")
+        st.success("Result: NEUTRAL")
+
